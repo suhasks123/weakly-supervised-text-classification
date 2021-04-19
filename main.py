@@ -9,62 +9,84 @@ from gen import augment, pseudodocs
 from load_data import load_dataset
 from gensim.models import word2vec
 
-
-def train_word2vec(sentence_matrix, vocabulary_inv, dataset_name, mode='skipgram',
-                   num_features=100, min_word_count=5, context=5):
-    model_dir = './' + dataset_name
-    model_name = "embedding"
-    model_name = os.path.join(model_dir, model_name)
-    if os.path.exists(model_name):
-        embedding_model = word2vec.Word2Vec.load(model_name)
-        print("Loading existing Word2Vec model {}...".format(model_name))
-    else:
-        num_workers = 15  # Number of threads to run in parallel
-        downsampling = 1e-3  # Downsample setting for frequent words
-        print('Training Word2Vec model...')
-
-        sentences = [[vocabulary_inv[w] for w in s] for s in sentence_matrix]
-        if mode == 'skipgram':
-            sg = 1
-            print('Model: skip-gram')
-        elif mode == 'cbow':
-            sg = 0
-            print('Model: CBOW')
-        embedding_model = word2vec.Word2Vec(sentences, workers=num_workers, sg=sg,
-                                            size=num_features, min_count=min_word_count,
-                                            window=context, sample=downsampling)
-
-        embedding_model.init_sims(replace=True)
-
-        if not os.path.exists(model_dir):
-            os.makedirs(model_dir)
-        print("Saving Word2Vec model {}".format(model_name))
-        embedding_model.save(model_name)
-
-    embedding_weights = {key: embedding_model[word] if word in embedding_model else
-                        np.random.uniform(-0.25, 0.25, embedding_model.vector_size)
-                         for key, word in vocabulary_inv.items()}
-    return embedding_weights
-
-
-def write_output(write_path, y_pred, perm):
+'''
+This function is used for printing the predictions
+for the self training data into a text file
+'''
+def write_output_to_file(write_path, y_pred, perm):
     invperm = np.zeros(len(perm), dtype='int32')
     for i,v in enumerate(perm):
         invperm[v] = i
     y_pred = y_pred[invperm]
-    with open(os.path.join(write_path, 'out.txt'), 'w') as f:
-        for val in y_pred:
-            f.write(str(val) + '\n')
-    print("Classification results are written in {}".format(os.path.join(write_path, 'out.txt')))
+    with open(os.path.join(write_path, 'out.txt'), 'w') as fptr:
+        # For each value in the prediction, print to the file
+        for value in y_pred:
+            fptr.write(str(value) + '\n')
+    print("Classification results are written to {}".format(os.path.join(write_path, 'out.txt')))
     return
 
+'''
+This function is used for obtaining the embedding weights from the word2vec model
+that is obtained either by importing a pretraining model or training a new model in the
+current runtime if the pretrained model doesn't exist.
+'''
+def train_word2vec_model(sentence_matrix, vocabulary_inv, dataset_name, mode='skipgram',
+                   num_of_features=100, min_word_count=5, context=5):
 
+    # Defining the path for the word2vec model
+    w2v_model_directory = './' + dataset_name
+    w2v_model_name = os.path.join(w2v_model_directory, "embedding")
+
+    # If the pretrained model already exists, import it
+    if os.path.exists(w2v_model_name):
+        w2v_embedding_model = word2vec.Word2Vec.load(w2v_model_name)
+        print("Preparing to load the existing Word2Vec model...")
+
+    # If the pretrained model doesn't exist, train a new model
+    else:
+        print('Starting the training of the word2vec model...')
+
+        # Obtain the sentences
+        sentences = [[vocabulary_inv[w] for w in s] for s in sentence_matrix]
+
+        # Change parameters based on whether the word2vec mode is skipgram or CBOW
+        if mode is 'skipgram':
+            sg = 1
+            print('Model being used is skip-gram')
+        elif mode is 'cbow':
+            sg = 0
+            print('Model being used is CBOW')
+
+        # Training the word2vec model
+        w2v_embedding_model = word2vec.Word2Vec(sentences, workers=15, sg=sg,
+                                            size=num_of_features, min_count=min_word_count,
+                                            window=context, sample=1e-3)
+
+        w2v_embedding_model.init_sims(replace=True)
+
+        # If the specified directory doesnt exist, make the directory
+        if not os.path.exists(w2v_model_directory):
+            os.makedirs(w2v_model_directory)
+
+        # Saving the word2vec model
+        w2v_embedding_model.save(w2v_model_name)
+        print("Word2Vec model saved!")
+
+    # Obtain the embedding weights from the word2vec model
+    w2v_embedding_weights = {key: w2v_embedding_model[word] if word in w2v_embedding_model else
+                        np.random.uniform(-0.25, 0.25, w2v_embedding_model.vector_size)
+                         for key, word in vocabulary_inv.items()}
+
+    # Return the embedding weights
+    return w2v_embedding_weights
+
+# The main function:
 if __name__ == "__main__":
 
     import argparse
 
-    parser = argparse.ArgumentParser(description='main',
-                                     formatter_class=argparse.ArgumentDefaultsHelpFormatter)
+    # Defining an argument parser
+    parser = argparse.ArgumentParser(description='main', formatter_class=argparse.ArgumentDefaultsHelpFormatter)
     
     ### Basic settings ###
     # dataset selection: AG's News (default) and Yelp Review
@@ -182,8 +204,8 @@ if __name__ == "__main__":
         sequence_length = [doc_len, sent_len]
     
     print("\n### Input preparation ###")
-    embedding_weights = train_word2vec(x, vocabulary_inv, args.dataset)
-    embedding_mat = np.array([np.array(embedding_weights[word]) for word in vocabulary_inv])
+    w2v_embedding_weights = train_word2vec_model(x, vocabulary_inv, args.dataset)
+    embedding_mat = np.array([np.array(w2v_embedding_weights[word]) for word in vocabulary_inv])
     
     wstc = WSTC(input_shape=x.shape, n_classes=n_classes, y=y, model=args.model,
                 vocab_sz=vocab_sz, embedding_matrix=embedding_mat, word_embedding_dim=word_embedding_dim)
@@ -246,4 +268,4 @@ if __name__ == "__main__":
             print('F1 score: f1_macro = {}, f1_micro = {}'.format(f1_macro, f1_micro))
     
     print("\n### Generating outputs ###")
-    write_output('./' + args.dataset, y_pred, perm)
+    write_output_to_file('./' + args.dataset, y_pred, perm)
