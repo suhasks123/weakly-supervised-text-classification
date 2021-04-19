@@ -10,6 +10,49 @@ from load_data import load_dataset
 from gensim.models import word2vec
 
 '''
+This function is used to set the optional arguments for the
+command-line arguments parser. These arguments are used to configure
+the functioning of the application. The parsing is handled by `argparse`
+'''
+def arguments_parser(parser):
+    set_parser_arguments_basic(parser)
+    set_parser_arguments_training(parser)
+    set_parser_arguments_hyperparameters(parser)
+    set_parser_arguments_misc(parser)
+
+    # Parse the arguments
+    args = parser.parse_args()
+    print(args)
+
+    return args
+
+# Basic configuration settings
+def set_parser_arguments_basic(parser):
+    parser.add_argument('--model', '-m', default='cnn', choices=['cnn', 'rnn']) # Selecting proper neural network model to use
+    parser.add_argument('--sup_source', '-s', default='labels', choices=['labels', 'keywords', 'docs']) # Selecting the weak supervision source
+    parser.add_argument('--dataset', '-d', default='agnews', choices=['agnews', 'yelp']) # Selecting appropriate dataset for training
+    parser.add_argument('--with_evaluation', '-w', default='True', choices=['True', 'False']) # Selecting whether ground truth labels are available for evaluation
+
+# Settings related to the training
+def set_parser_arguments_training(parser):
+    parser.add_argument('--batch_size', '-z', default=256, type=int) # Selecting the mini-batch size for both pre-training and self-training
+    parser.add_argument('--pretrain_epochs', '-e', default=None, type=int) # Number of epochs in pre-training
+    parser.add_argument('--update_interval', '-u', default=None, type=int) # Selecting self-training update interval
+    parser.add_argument('--max_iter', '-i', default=5e3, type=int) # Upper limit of self-training iterations
+
+# Settings related to hyperparameters
+def set_parser_arguments_hyperparameters(parser):
+    parser.add_argument('--alpha', '-a', default=0.2, type=float) # Selecting background word distribution weight
+    parser.add_argument('--delta', '-c', default=0.1, type=float) # Selecting the stopping criterion for self-training
+    parser.add_argument('--beta', '-b', default=500, type=int) # Selecting the number of pseudo documents generated for every class
+    parser.add_argument('--gamma', '-g', default=50, type=int) # Selecting the size of the keyword vocabulary
+
+# Miscellaneous arguments
+def set_parser_arguments_misc(parser):
+    parser.add_argument('--trained_weights', '-t', default=None) # Directory containing the trained model
+
+
+'''
 This function is used for printing the predictions
 for the self training data into a text file
 '''
@@ -50,10 +93,10 @@ def train_word2vec_model(sentence_matrix, vocabulary_inv, dataset_name, mode='sk
         sentences = [[vocabulary_inv[w] for w in s] for s in sentence_matrix]
 
         # Change parameters based on whether the word2vec mode is skipgram or CBOW
-        if mode is 'skipgram':
+        if mode == 'skipgram':
             sg = 1
             print('Model being used is skip-gram')
-        elif mode is 'cbow':
+        elif mode == 'cbow':
             sg = 0
             print('Model being used is CBOW')
 
@@ -87,43 +130,8 @@ if __name__ == "__main__":
 
     # Defining an argument parser
     parser = argparse.ArgumentParser(description='main', formatter_class=argparse.ArgumentDefaultsHelpFormatter)
-    
-    ### Basic settings ###
-    # dataset selection: AG's News (default) and Yelp Review
-    parser.add_argument('--dataset', default='agnews', choices=['agnews', 'yelp'])
-    # neural model selection: Convolutional Neural Network (default) and Hierarchical Attention Network
-    parser.add_argument('--model', default='cnn', choices=['cnn', 'rnn'])
-    # weak supervision selection: label surface names (default), class-related keywords and labeled documents
-    parser.add_argument('--sup_source', default='labels', choices=['labels', 'keywords', 'docs'])
-    # whether ground truth labels are available for evaluation: True (default), False
-    parser.add_argument('--with_evaluation', default='True', choices=['True', 'False'])
 
-    ### Training settings ###
-    # mini-batch size for both pre-training and self-training: 256 (default)
-    parser.add_argument('--batch_size', default=256, type=int)
-    # maximum self-training iterations: 5000 (default)
-    parser.add_argument('--maxiter', default=5e3, type=int)
-    # pre-training epochs: None (default)
-    parser.add_argument('--pretrain_epochs', default=None, type=int)
-    # self-training update interval: None (default)
-    parser.add_argument('--update_interval', default=None, type=int)
-
-    ### Hyperparameters settings ###
-    # background word distribution weight (alpha): 0.2 (default)
-    parser.add_argument('--alpha', default=0.2, type=float)
-    # number of generated pseudo documents per class (beta): 500 (default)
-    parser.add_argument('--beta', default=500, type=int)
-    # keyword vocabulary size (gamma): 50 (default)
-    parser.add_argument('--gamma', default=50, type=int)
-    # self-training stopping criterion (delta): None (default)
-    parser.add_argument('--delta', default=0.1, type=float)
-
-    ### Case study settings ###
-    # trained model directory: None (default)
-    parser.add_argument('--trained_weights', default=None)
-
-    args = parser.parse_args()
-    print(args)
+    args = arguments_parser(parser)
 
     alpha = args.alpha
     beta = args.beta
@@ -254,7 +262,7 @@ if __name__ == "__main__":
         print("\n### Phase 3: self-training ###")
         selftrain_optimizer = SGD(lr=self_lr, momentum=0.9, decay=decay)
         wstc.compile(optimizer=selftrain_optimizer, loss='kld')
-        y_pred = wstc.fit(x, y=y, tol=delta, maxiter=args.maxiter, batch_size=args.batch_size,
+        y_pred = wstc.fit(x, y=y, tol=delta, maxiter=args.max_iter, batch_size=args.batch_size,
                          update_interval=update_interval, save_dir='./results/{}/{}/phase3'.format(args.dataset, args.model), 
                          save_suffix=args.dataset+'_'+str(args.sup_source))
         print('Self-training time: {:.2f}s'.format(time() - t0))
