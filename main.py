@@ -42,10 +42,18 @@ def set_parser_arguments_training(parser):
 
 # Settings related to hyperparameters
 def set_parser_arguments_hyperparameters(parser):
-    parser.add_argument('--alpha', '-a', default=0.2, type=float) # Selecting background word distribution weight
-    parser.add_argument('--delta', '-c', default=0.1, type=float) # Selecting the stopping criterion for self-training
-    parser.add_argument('--beta', '-b', default=500, type=int) # Selecting the number of pseudo documents generated for every class
-    parser.add_argument('--gamma', '-g', default=50, type=int) # Selecting the size of the keyword vocabulary
+    # Delta - The stopping criterion for self-training
+    default_delta = 0.1
+    parser.add_argument('--delta', '-c', default=default_delta, type=float) # Selecting the stopping criterion for self-training
+    # Alpha - The background word distribution weight
+    default_alpha = 0.2
+    parser.add_argument('--alpha', '-a', default=default_alpha, type=float) # Selecting background word distribution weight
+    # Beta - The number of pseudo documents generated for every class
+    default_beta = 500
+    parser.add_argument('--beta', '-b', default=default_beta, type=int) # Selecting the number of pseudo documents generated for every class
+    # Gamma - The size of the keyword vocabulary
+    default_gamma = 50
+    parser.add_argument('--gamma', '-g', default=default_gamma, type=int) # Selecting the size of the keyword vocabulary
 
 # Miscellaneous arguments
 def set_parser_arguments_misc(parser):
