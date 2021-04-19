@@ -65,13 +65,22 @@ This function is used for printing the predictions
 for the self training data into a text file
 '''
 def write_output_to_file(write_path, y_pred, perm):
-    invperm = np.zeros(len(perm), dtype='int32')
+    # Get length of perm
+    perm_length = len(perm)
+
+    # Desired datatype
+    datatype = 'int32'
+    invperm = np.zeros(perm_length, dtype=datatype)
+
     for i,v in enumerate(perm):
         invperm[v] = i
+
     y_pred = y_pred[invperm]
+
     with open(os.path.join(write_path, 'out.txt'), 'w') as fptr:
         # For each value in the prediction, print to the file
         for value in y_pred:
+            # Write to file
             fptr.write(str(value) + '\n')
     print("Classification results are written to {}".format(os.path.join(write_path, 'out.txt')))
     return
