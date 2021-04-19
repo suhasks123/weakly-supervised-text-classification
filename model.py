@@ -17,10 +17,18 @@ from sklearn.metrics import f1_score
 def f1(y_true, y_pred):
     y_true = y_true.astype(np.int64)
     assert y_pred.size == y_true.size
-    f1_macro = f1_score(y_true, y_pred, average='macro')
-    f1_micro = f1_score(y_true, y_pred, average='micro')
-    return f1_macro, f1_micro
+    f1 = f1_score(y_true, y_pred, average='macro')
+    return f1
 
+def accuracy(y_true, y_pred):
+    y_true = y_true.astype(np.int64)
+    assert y_pred.size == y_true.size
+    no_of_right_pred = 0
+    for i in range(0, y_pred.size):
+        if y_pred[i] == y_true[i]:
+            no_of_right_pred += 1
+    accuracy_value = no_of_right_pred/y_pred.size
+    return accuracy_value
 
 def ConvolutionLayer(input_shape, n_classes, filter_sizes=[2, 3, 4, 5], num_filters=20, word_trainable=False, vocab_sz=None,
                      embedding_matrix=None, word_embedding_dim=100, hidden_dim=20, act='relu', init='ones'):

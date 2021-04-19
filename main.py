@@ -3,7 +3,7 @@ np.random.seed(1234)
 from time import time
 import os
 # os.environ["CUDA_VISIBLE_DEVICES"]="0"
-from model import WSTC, f1
+from model import WSTC, f1, accuracy
 from keras.optimizers import SGD
 from gen import augment, pseudodocs
 from load_data import load_dataset
@@ -272,8 +272,11 @@ if __name__ == "__main__":
 
         y_pred = wstc.predict(x)
         if y is not None:
-            f1_macro, f1_micro = np.round(f1(y, y_pred), 5)
-            print('F1 score after pre-training: f1_macro = {}, f1_micro = {}'.format(f1_macro, f1_micro))
+            f1_score = np.round(f1(y, y_pred), 5)
+            print('F1 score after pre-training: {}'.format(f1_score))
+
+            accuracy_value = np.round(accuracy(y, y_pred), 5)
+            print('Accuracy score after pre-training: accuracy = {}'.format(accuracy_value))
 
         t0 = time()
         print("\n### Phase 3: self-training ###")
@@ -289,8 +292,11 @@ if __name__ == "__main__":
         wstc.load_weights(args.trained_weights)
         y_pred = wstc.predict(x)
         if y is not None:
-            f1_macro, f1_micro = np.round(f1(y, y_pred), 5)
-            print('F1 score: f1_macro = {}, f1_micro = {}'.format(f1_macro, f1_micro))
-    
+            f1_score = np.round(f1(y, y_pred), 5)
+            print('F1 score after pre-training: {}'.format(f1_score))
+
+            accuracy_value = np.round(accuracy(y, y_pred), 5)
+            print('Final Accuracy score: accuracy = {}'.format(accuracy_value))
+
     print("\n### Generating outputs ###")
     write_output_to_file('./' + args.dataset, y_pred, perm)
