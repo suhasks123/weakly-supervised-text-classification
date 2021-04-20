@@ -11,8 +11,8 @@ from gensim.models import word2vec
 
 # Importing the PyTorch Bert Model and related utilities
 import torch
-from pytorch_transformers import BertTokenizer
-from pytorch_transformers import BertModel
+from transformers import BertTokenizer
+from transformers import BertModel
 
 '''
 This function is used to set the optional arguments for the
@@ -35,7 +35,7 @@ def arguments_parser(parser):
 def set_parser_arguments_basic(parser):
     parser.add_argument('--model', '-m', default='cnn', choices=['cnn', 'rnn']) # Selecting proper neural network model to use
     parser.add_argument('--sup_source', '-s', default='labels', choices=['labels', 'keywords', 'docs']) # Selecting the weak supervision source
-    parser.add_argument('--dataset', '-d', default='agnews', choices=['agnews', 'yelp']) # Selecting appropriate dataset for training
+    parser.add_argument('--dataset', '-d', default='agnews', choices=['agnews', 'yelp', 'imdb']) # Selecting appropriate dataset for training
     parser.add_argument('--with_evaluation', '-w', default='True', choices=['True', 'False']) # Selecting whether ground truth labels are available for evaluation
 
 # Settings related to the training
@@ -93,19 +93,21 @@ def write_output_to_file(write_path, y_pred, perm):
 def train_bert_model(sentence_matrix, vocabulary_inv, dataset_name, mode='skipgram', num_of_features=100, min_word_count=5, context=5):
     ## Load pretrained model/tokenizer
     bert_tokenizer = BertTokenizer.from_pretrained('bert-base-uncased')
-    bert_model = BertModel.from_pretrained('bert-base uncased', output_hidden_states=True)
+    bert_model = BertModel.from_pretrained('bert-base-uncased', output_hidden_states=True)
     bert_model.eval()
 
     # Obtain the sentences
     sentences = [[vocabulary_inv[w] for w in s] for s in sentence_matrix]
 
-    embedding_weights = []
-
+    embedding_model = {}
+    c = 0
     # Add the special tokens.
     for s in sentences:
-        s = "[CLS] " + s + " [SEP]"
+
+        s[0] = "[CLS] " + s[0] + " [SEP]"
         # Split the sentence into tokens.
-        tokenized_s = bert_tokenizer.tokenize(s)
+        tokenized_s = bert_tokenizer.tokenize(s[0])
+        # print(tokenized_s)
         # Map the token strings to their vocabulary indeces.
         indexed_s = bert_tokenizer.convert_tokens_to_ids(tokenized_s)
 
@@ -130,8 +132,28 @@ def train_bert_model(sentence_matrix, vocabulary_inv, dataset_name, mode='skipgr
         # concatenate last four layers
         final_word_embed = torch.cat([hidden_states[i] for i in [-1,-2,-3,-4]], dim=-1)
 
+        # print(final_word_embed.shape)
+        # (1,x,3072)
+        token_vecs = final_word_embed[0]
+        # print(token_vecs.shape)
+        # # Calculate the average of all 22 token vectors.
+        final_word_embed = torch.mean(token_vecs, dim=0)
+
         final_embed_np = final_word_embed.numpy()
-        embedding_weights.append(final_embed_np)
+        # # print(final_embed_np.shape)
+        embedding_model[s[0]] = final_embed_np
+        c += 1
+
+    # bert_embedding_weights = {key: embedding_model[word] if word in w2v_embedding_model else
+    #                     np.random.uniform(-0.25, 0.25, w2v_embedding_model.vector_size)
+    #                      for key, word in vocabulary_inv.items()}
+
+    bert_embedding_weights = {}
+    for key, word in vocabulary_inv.items():
+        if word in embedding_model.keys():
+            bert_embedding_weights[key] = embedding_model[word]
+        else:
+            bert_embedding_weights[key] = np.random.uniform(-0.25, 0.25, 3072)
 
     return embedding_weights
 
@@ -187,6 +209,7 @@ def train_word2vec_model(sentence_matrix, vocabulary_inv, dataset_name, mode='sk
     w2v_embedding_weights = {key: w2v_embedding_model[word] if word in w2v_embedding_model else
                         np.random.uniform(-0.25, 0.25, w2v_embedding_model.vector_size)
                          for key, word in vocabulary_inv.items()}
+    # print(w2v_embedding_weights)
 
     # Return the embedding weights
     return w2v_embedding_weights
@@ -221,6 +244,11 @@ if __name__ == "__main__":
             pretrain_epochs = 30
             self_lr = 1e-4
             max_sequence_length = 500
+        elif args.dataset == 'imdb':
+            update_interval = 50
+            pretrain_epochs = 30
+            self_lr = 1e-4
+            max_sequence_length = 500
 
         decay = 1e-6
     
@@ -234,6 +262,12 @@ if __name__ == "__main__":
             doc_len = 10
 
         elif args.dataset == 'yelp':
+            update_interval = 100
+            pretrain_epochs = 200
+            self_lr = 1e-4
+            sent_len = 30
+            doc_len = 40
+        elif args.dataset == 'imdb':
             update_interval = 100
             pretrain_epochs = 200
             self_lr = 1e-4
@@ -261,7 +295,10 @@ if __name__ == "__main__":
             load_dataset(args.dataset, model=args.model, sup_source=args.sup_source, with_evaluation=with_evaluation, truncate_len=max_sequence_length)
     
     np.random.seed(1234)
+    # print(vocabulary_inv_list)
     vocabulary_inv = {key: value for key, value in enumerate(vocabulary_inv_list)}
+    # print("  ... .. . ")
+    # print(vocabulary_inv)
     vocab_sz = len(vocabulary_inv)
     n_classes = len(word_sup_list)    
 
@@ -281,8 +318,10 @@ if __name__ == "__main__":
     
     print("\n### Input preparation ###")
     w2v_embedding_weights = train_bert_model(x, vocabulary_inv, args.dataset)
-    #w2v_embedding_weights = train_word2vec_model(x, vocabulary_inv, args.dataset)
+    # w2v_embedding_weights = train_word2vec_model(x, vocabulary_inv, args.dataset)
     embedding_mat = np.array([np.array(w2v_embedding_weights[word]) for word in vocabulary_inv])
+    # print(embedding_mat)
+    # print(embedding_mat.size)
     
     wstc = WSTC(input_shape=x.shape, n_classes=n_classes, y=y, model=args.model,
                 vocab_sz=vocab_sz, embedding_matrix=embedding_mat, word_embedding_dim=word_embedding_dim)

@@ -24,6 +24,9 @@ def read_file(data_dir, with_evaluation):
             elif data_dir == './yelp':
                 data.append(row[1])
                 target.append(int(row[0]) - 1)
+            elif data_dir == './imdb':
+                data.append(row[1])
+                target.append(int(row[0]) - 1)
     if with_evaluation:
         y = np.asarray(target)
         assert len(data) == len(y)
@@ -80,8 +83,10 @@ def build_vocab(sentences):
     word_counts = Counter(itertools.chain(*sentences))
     # Mapping from index to word
     vocabulary_inv = [x[0] for x in word_counts.most_common()]
+    # print(len(vocabulary_inv))
     # Mapping from word to index
     vocabulary = {x: i for i, x in enumerate(vocabulary_inv)}
+    # print(len(vocabulary))
     return word_counts, vocabulary, vocabulary_inv
 
 
