@@ -200,6 +200,7 @@ def load_keywords(data_path, sup_source):
 def load_cnn(dataset_name, sup_source, num_keywords=10, with_evaluation=True, truncate_len=None):
     data_path = './' + dataset_name
     data, y = read_file(data_path, with_evaluation)
+    data_forlater = data
 
     sz = len(data)
     np.random.seed(1234)
@@ -224,6 +225,7 @@ def load_cnn(dataset_name, sup_source, num_keywords=10, with_evaluation=True, tr
     print('Fraction of truncated documents: {}'.format(sum(tmp > truncate_len for tmp in tmp_list)/len(tmp_list)))
     
     sequences_padded = pad_sequences(data)
+    # print(sequences_padded)
     word_counts, vocabulary, vocabulary_inv = build_vocab(sequences_padded)
     x = build_input_data_cnn(sequences_padded, vocabulary)
     x = x[perm]

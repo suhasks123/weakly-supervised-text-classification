@@ -31,22 +31,17 @@ def accuracy(y_true, y_pred):
     return accuracy_value
 
 def ConvolutionLayer(input_shape, n_classes, filter_sizes=[2, 3, 4, 5], num_filters=20, word_trainable=False, vocab_sz=None,
-                     embedding_matrix=None, word_embedding_dim=100, hidden_dim=20, act='relu', init='ones'):
+                     embedding_matrix=None, word_embedding_dim=100, hidden_dim=50, act='tanh', init='ones'):
     x = Input(shape=(input_shape,), name='input')
     z = Embedding(vocab_sz, word_embedding_dim, input_length=(input_shape,), name="embedding", 
                     weights=[embedding_matrix], trainable=word_trainable)(x)
     conv_blocks = []
     for sz in filter_sizes:
-        conv = Convolution1D(filters=num_filters,
-                             kernel_size=sz,
-                             padding="valid",
-                             activation=act,
-                             strides=1,
-                             kernel_initializer=init)(z)
+        conv = Convolution1D(filters=num_filters, kernel_size=sz, padding="valid", activation=act, strides=1, kernel_initializer=init)(z)
         conv = GlobalMaxPooling1D()(conv)
         conv_blocks.append(conv)
     z = Concatenate()(conv_blocks) if len(conv_blocks) > 1 else conv_blocks[0]
-    z = Dense(hidden_dim, activation="relu")(z)
+    z = Dense(hidden_dim, activation="tanh")(z)
     y = Dense(n_classes, activation="softmax")(z)
     return Model(inputs=x, outputs=y, name='classifier')
 
@@ -235,7 +230,7 @@ class WSTC(object):
         if not os.path.exists(save_dir):
             os.makedirs(save_dir)
         logfile = open(save_dir + '/self_training_log_{}.csv'.format(save_suffix), 'w')
-        logwriter = csv.DictWriter(logfile, fieldnames=['iter', 'f1_macro', 'f1_micro'])
+        logwriter = csv.DictWriter(logfile, fieldnames=['iter', 'f1_score', 'accuracy'])
         logwriter.writeheader()
 
         index = 0
@@ -248,10 +243,11 @@ class WSTC(object):
                 p = self.target_distribution(q, power)
                 print('\nIter {}: '.format(ite), end='')
                 if y is not None:
-                    f1_macro, f1_micro = np.round(f1(y, y_pred), 5)
-                    logdict = dict(iter=ite, f1_macro=f1_macro, f1_micro=f1_micro)
+                    f1_score= np.round(f1(y, y_pred), 5)
+                    accuracy_value = np.round(accuracy(y, y_pred), 5)
+                    logdict = dict(iter=ite, f1_score=f1_score, accuracy=accuracy)
                     logwriter.writerow(logdict)
-                    print('f1_macro = {}, f1_micro = {}'.format(f1_macro, f1_micro))
+                    print('f1_score = {}, Accuracy = {}'.format(f1_score, accuracy_value))
                     
                 # check stop criterion
                 delta_label = np.sum(y_pred != y_pred_last).astype(np.float) / y_pred.shape[0]

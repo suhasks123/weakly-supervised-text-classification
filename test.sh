@@ -1,6 +1,6 @@
 
 dataset=agnews
-sup_source=labels
+sup_source=docs
 model=cnn
 
 export CUDA_VISIBLE_DEVICES=0
