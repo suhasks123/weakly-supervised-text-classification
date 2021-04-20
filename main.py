@@ -2,6 +2,8 @@ import numpy as np
 np.random.seed(1234)
 from time import time
 import os
+import json
+
 # os.environ["CUDA_VISIBLE_DEVICES"]="0"
 from model import WSTC, f1, accuracy
 from keras.optimizers import SGD
@@ -92,70 +94,89 @@ def write_output_to_file(write_path, y_pred, perm):
 
 def train_bert_model(sentence_matrix, vocabulary_inv, dataset_name, mode='skipgram', num_of_features=100, min_word_count=5, context=5):
     ## Load pretrained model/tokenizer
-    bert_tokenizer = BertTokenizer.from_pretrained('bert-base-uncased')
-    bert_model = BertModel.from_pretrained('bert-base-uncased', output_hidden_states=True)
-    bert_model.eval()
 
-    # Obtain the sentences
-    sentences = [[vocabulary_inv[w] for w in s] for s in sentence_matrix]
+    bert_model_directory = './' + dataset_name
+    bert_model_name = os.path.join(bert_model_directory, "BERTembedding.txt")
 
-    embedding_model = {}
-    c = 0
-    # Add the special tokens.
-    for s in sentences:
+    if not os.path.exists(bert_model_name):
+        bert_tokenizer = BertTokenizer.from_pretrained('bert-base-uncased')
+        bert_model = BertModel.from_pretrained('bert-base-uncased', output_hidden_states=True)
+        bert_model.eval()
 
-        s[0] = "[CLS] " + s[0] + " [SEP]"
-        # Split the sentence into tokens.
-        tokenized_s = bert_tokenizer.tokenize(s[0])
-        # print(tokenized_s)
-        # Map the token strings to their vocabulary indeces.
-        indexed_s = bert_tokenizer.convert_tokens_to_ids(tokenized_s)
+        # Obtain the sentences
+        sentences = [[vocabulary_inv[w] for w in s] for s in sentence_matrix]
 
-        # Convert inputs to PyTorch tensors
-        s_tensor = torch.tensor([indexed_s])
+        embedding_model = {}
+        c = 0
+        # Add the special tokens.
+        for s in sentences:
         
-        #Run the text through BERT, get the output and collect all of the hidden states produced from all 12 layers.
-        with torch.no_grad():
-            outputs = bert_model(s_tensor)
-        # can use last hidden state as word embeddings
-        last_hidden_state = outputs[0]
-        word_embed_1 = last_hidden_state
-        hidden_states = outputs[2]
-        # initial embeddings can be taken from 0th layer of hidden states
-        word_embed_2 = hidden_states[0]
-        # sum of all hidden states
-        word_embed_3 = torch.stack(hidden_states).sum(0)
-        # sum of second to last layer
-        word_embed_4 = torch.stack(hidden_states[2:]).sum(0)
-        # sum of last four layer
-        word_embed_5 = torch.stack(hidden_states[-4:]).sum(0)
-        # concatenate last four layers
-        final_word_embed = torch.cat([hidden_states[i] for i in [-1,-2,-3,-4]], dim=-1)
+            print(c)
+            s[0] = "[CLS] " + s[0] + " [SEP]"
+            # Split the sentence into tokens.
+            tokenized_s = bert_tokenizer.tokenize(s[0])
+            # print(tokenized_s)
+            # Map the token strings to their vocabulary indeces.
+            indexed_s = bert_tokenizer.convert_tokens_to_ids(tokenized_s)
 
-        # print(final_word_embed.shape)
-        # (1,x,3072)
-        token_vecs = final_word_embed[0]
-        # print(token_vecs.shape)
-        # # Calculate the average of all 22 token vectors.
-        final_word_embed = torch.mean(token_vecs, dim=0)
+            # Convert inputs to PyTorch tensors
+            s_tensor = torch.tensor([indexed_s])
+        
+            #Run the text through BERT, get the output and collect all of the hidden states produced from all 12 layers.
+            with torch.no_grad():
+                outputs = bert_model(s_tensor)
+            # can use last hidden state as word embeddings
+            last_hidden_state = outputs[0]
+            word_embed_1 = last_hidden_state
+            hidden_states = outputs[2]
+            # initial embeddings can be taken from 0th layer of hidden states
+            word_embed_2 = hidden_states[0]
+            # sum of all hidden states
+            word_embed_3 = torch.stack(hidden_states).sum(0)
+            # sum of second to last layer
+            word_embed_4 = torch.stack(hidden_states[2:]).sum(0)
+            # sum of last four layer
+            word_embed_5 = torch.stack(hidden_states[-4:]).sum(0)
+            # concatenate last four layers
+            final_word_embed = torch.cat([hidden_states[i] for i in [-1,-2,-3,-4]], dim=-1)
 
-        final_embed_np = final_word_embed.numpy()
-        # # print(final_embed_np.shape)
-        embedding_model[s[0]] = final_embed_np
-        c += 1
+            # print(final_word_embed.shape)
+            # (1,x,3072)
+            token_vecs = final_word_embed[0]
+            # print(token_vecs.shape)
+            # # Calculate the average of all 22 token vectors.
+            final_word_embed = torch.mean(token_vecs, dim=0)
 
-    # bert_embedding_weights = {key: embedding_model[word] if word in w2v_embedding_model else
-    #                     np.random.uniform(-0.25, 0.25, w2v_embedding_model.vector_size)
-    #                      for key, word in vocabulary_inv.items()}
+            final_embed_np = final_word_embed.numpy()
+            # # print(final_embed_np.shape)
+            embedding_model[s[0]] = final_embed_np
+            c += 1
+            if c == 100: 
+                break
 
-    bert_embedding_weights = {}
-    for key, word in vocabulary_inv.items():
-        if word in embedding_model.keys():
-            bert_embedding_weights[key] = embedding_model[word]
-        else:
-            bert_embedding_weights[key] = np.random.uniform(-0.25, 0.25, 3072)
+        bert_embedding_weights = {}
+        for key, word in vocabulary_inv.items():
+            if word in embedding_model.keys():
+                bert_embedding_weights[key] = embedding_model[word]
+            else:
+                bert_embedding_weights[key] = np.random.uniform(-0.25, 0.25, 3072)
 
-    return embedding_weights
+        with open(bert_model_name, 'w') as outfile:
+            for key, value in bert_embedding_weights.items():
+                print(key)
+                print(value)
+                outfile.write(str(key) + ":" + value + "\n")
+
+    else:
+        bert_embedding_weights = {}
+        with open(bert_model_name, 'r') as weightFile:
+            print("Preparing to load the existing bert model...")
+            k = weightFile.readline()
+            k = k.split(":")
+            print(k)
+            bert_embedding_weights[int(k[0])] = k[1]
+
+    return bert_embedding_weights
 
 
 '''
@@ -229,7 +250,7 @@ if __name__ == "__main__":
     gamma = args.gamma
     delta = args.delta
 
-    word_embedding_dim = 100
+    word_embedding_dim = 3072
     
     if args.model == 'cnn':
 
