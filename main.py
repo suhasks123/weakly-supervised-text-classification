@@ -9,6 +9,11 @@ from gen import augment, pseudodocs
 from load_data import load_dataset
 from gensim.models import word2vec
 
+# Importing the PyTorch Bert Model and related utilities
+import torch
+from pytorch_transformers import BertTokenizer
+from pytorch_transformers import BertModel
+
 '''
 This function is used to set the optional arguments for the
 command-line arguments parser. These arguments are used to configure
@@ -84,6 +89,52 @@ def write_output_to_file(write_path, y_pred, perm):
             fptr.write(str(value) + '\n')
     print("Classification results are written to {}".format(os.path.join(write_path, 'out.txt')))
     return
+
+def train_bert_model(sentence_matrix, vocabulary_inv, dataset_name, mode='skipgram', num_of_features=100, min_word_count=5, context=5):
+    ## Load pretrained model/tokenizer
+    bert_tokenizer = BertTokenizer.from_pretrained('bert-base-uncased')
+    bert_model = BertModel.from_pretrained('bert-base uncased', output_hidden_states=True)
+    bert_model.eval()
+
+    # Obtain the sentences
+    sentences = [[vocabulary_inv[w] for w in s] for s in sentence_matrix]
+
+    embedding_weights = []
+
+    # Add the special tokens.
+    for s in sentences:
+        s = "[CLS] " + s + " [SEP]"
+        # Split the sentence into tokens.
+        tokenized_s = bert_tokenizer.tokenize(s)
+        # Map the token strings to their vocabulary indeces.
+        indexed_s = bert_tokenizer.convert_tokens_to_ids(tokenized_s)
+
+        # Convert inputs to PyTorch tensors
+        s_tensor = torch.tensor([indexed_s])
+        
+        #Run the text through BERT, get the output and collect all of the hidden states produced from all 12 layers.
+        with torch.no_grad():
+            outputs = bert_model(s_tensor)
+        # can use last hidden state as word embeddings
+        last_hidden_state = outputs[0]
+        word_embed_1 = last_hidden_state
+        hidden_states = outputs[2]
+        # initial embeddings can be taken from 0th layer of hidden states
+        word_embed_2 = hidden_states[0]
+        # sum of all hidden states
+        word_embed_3 = torch.stack(hidden_states).sum(0)
+        # sum of second to last layer
+        word_embed_4 = torch.stack(hidden_states[2:]).sum(0)
+        # sum of last four layer
+        word_embed_5 = torch.stack(hidden_states[-4:]).sum(0)
+        # concatenate last four layers
+        final_word_embed = torch.cat([hidden_states[i] for i in [-1,-2,-3,-4]], dim=-1)
+
+        final_embed_np = final_word_embed.numpy()
+        embedding_weights.append(final_embed_np)
+
+    return embedding_weights
+
 
 '''
 This function is used for obtaining the embedding weights from the word2vec model
@@ -229,7 +280,8 @@ if __name__ == "__main__":
         sequence_length = [doc_len, sent_len]
     
     print("\n### Input preparation ###")
-    w2v_embedding_weights = train_word2vec_model(x, vocabulary_inv, args.dataset)
+    w2v_embedding_weights = train_bert_model(x, vocabulary_inv, args.dataset)
+    #w2v_embedding_weights = train_word2vec_model(x, vocabulary_inv, args.dataset)
     embedding_mat = np.array([np.array(w2v_embedding_weights[word]) for word in vocabulary_inv])
     
     wstc = WSTC(input_shape=x.shape, n_classes=n_classes, y=y, model=args.model,

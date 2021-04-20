@@ -1,5 +1,5 @@
 
-dataset=agnews
+dataset=yelp
 sup_source=docs
 model=cnn
 
