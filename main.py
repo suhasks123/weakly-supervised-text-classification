@@ -37,7 +37,7 @@ def arguments_parser(parser):
 # Basic configuration settings
 def set_parser_arguments_basic(parser):
     parser.add_argument('--language_model', '-l', default='w2v', choices=['w2v', 'bert']) # Selecting the language model
-    parser.add_argument('--model', '-m', default='cnn', choices=['cnn', 'rnn']) # Selecting proper neural network model to use
+    parser.add_argument('--model', '-m', default='cnn', choices=['cnn']) # Selecting proper neural network model to use
     parser.add_argument('--sup_source', '-s', default='labels', choices=['labels', 'keywords', 'docs']) # Selecting the weak supervision source
     parser.add_argument('--dataset', '-d', default='agnews', choices=['agnews', 'yelp', 'imdb']) # Selecting appropriate dataset for training
     parser.add_argument('--with_evaluation', '-w', default='True', choices=['True', 'False']) # Selecting whether ground truth labels are available for evaluation
@@ -277,52 +277,26 @@ if __name__ == "__main__":
         word_embedding_dim = 100
     elif args.language_model == "bert":
         word_embedding_dim = 3072
-
-    if args.model == 'cnn':
-
-        if args.dataset == 'agnews':
-            update_interval = 50
-            pretrain_epochs = 20
-            self_lr = 1e-3
-            max_sequence_length = 100
-
-        elif args.dataset == 'yelp':
-            update_interval = 50
-            pretrain_epochs = 30
-            self_lr = 1e-4
-            max_sequence_length = 500
-        elif args.dataset == 'imdb':
-            update_interval = 50
-            pretrain_epochs = 30
-            self_lr = 1e-4
-            max_sequence_length = 500
-
-        decay = 1e-6
     
-    elif args.model == 'rnn':
+    # Change parameters depending on dataset for CNN
+    if args.dataset == 'agnews':
+        update_interval = 50
+        pretrain_epochs = 20
+        self_lr = 1e-3
+        max_sequence_length = 100
 
-        if args.dataset == 'agnews':
-            update_interval = 50
-            pretrain_epochs = 100
-            self_lr = 1e-3
-            sent_len = 45
-            doc_len = 10
+    elif args.dataset == 'yelp':
+        update_interval = 50
+        pretrain_epochs = 30
+        self_lr = 1e-4
+        max_sequence_length = 500
+    elif args.dataset == 'imdb':
+        update_interval = 50
+        pretrain_epochs = 30
+        self_lr = 1e-4
+        max_sequence_length = 500
 
-        elif args.dataset == 'yelp':
-            update_interval = 100
-            pretrain_epochs = 200
-            self_lr = 1e-4
-            sent_len = 30
-            doc_len = 40
-        elif args.dataset == 'imdb':
-            update_interval = 100
-            pretrain_epochs = 200
-            self_lr = 1e-4
-            sent_len = 30
-            doc_len = 40
-
-        decay = 1e-5
-        max_sequence_length = [doc_len, sent_len]
+    decay = 1e-6
 
     if args.update_interval is not None:
         update_interval = args.update_interval
@@ -347,22 +321,14 @@ if __name__ == "__main__":
     # print("  ... .. . ")
     # print(vocabulary_inv)
     vocab_sz = len(vocabulary_inv)
-    n_classes = len(word_sup_list)    
+    n_classes = len(word_sup_list)
 
-    if args.model == 'cnn':
-        if x.shape[1] < max_sequence_length:
+    # Set sequence length for CNN
+    if x.shape[1] < max_sequence_length:
             max_sequence_length = x.shape[1]
-        x = x[:, :max_sequence_length]
-        sequence_length = max_sequence_length
+    x = x[:, :max_sequence_length]
+    sequence_length = max_sequence_length
 
-    elif args.model == 'rnn':
-        if x.shape[1] < doc_len:
-            doc_len = x.shape[1]
-        if x.shape[2] < sent_len:
-            sent_len = x.shape[2]
-        x = x[:, :doc_len, :sent_len]
-        sequence_length = [doc_len, sent_len]
-    
     print("\n### Input preparation ###")
     if args.language_model == "w2v":
         embedding_weights = train_word2vec_model(x, vocabulary_inv, args.dataset)
@@ -391,10 +357,8 @@ if __name__ == "__main__":
                                            './results/{}/{}/phase1/'.format(args.dataset, args.model))
         
         if args.sup_source == 'docs':
-            if args.model == 'cnn':
-                num_real_doc = len(sup_idx.flatten()) * 10
-            elif args.model == 'rnn':
-                num_real_doc = len(sup_idx.flatten())
+            # Number of real documents for CNN
+            num_real_doc = len(sup_idx.flatten()) * 10
             real_seed_docs, real_seed_label = augment(x, sup_idx, num_real_doc)
             seed_docs = np.concatenate((seed_docs, real_seed_docs), axis=0)
             seed_label = np.concatenate((seed_label, real_seed_label), axis=0)

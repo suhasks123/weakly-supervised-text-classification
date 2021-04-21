@@ -79,7 +79,6 @@ def label_expansion(class_labels, write_path, vocabulary_inv, embedding_mat):
     print("Finished vMF distribution fitting.")
     return expanded_array, centers, kappas
 
-
 def pseudodocs(word_sup_array, total_num, background_array, sequence_length, len_avg,
                 len_std, num_doc, interp_weight, vocabulary_inv, embedding_mat, model, save_dir=None):
     
@@ -91,56 +90,30 @@ def pseudodocs(word_sup_array, total_num, background_array, sequence_length, len
 
     print("Pseudo documents generation...")
     background_vec = interp_weight * background_array
-    if model == 'cnn':
-        docs = np.zeros((num_doc*len(word_sup_array), sequence_length), dtype='int32')
-        label = np.zeros((num_doc*len(word_sup_array), len(word_sup_array)))
-        for i in range(len(word_sup_array)):
-            docs_len = len_avg*np.ones(num_doc)
-            center = centers[i]
-            kappa = kappas[i]
-            discourses = sample_vMF(center, kappa, num_doc)
-            for j in range(num_doc):
-                discourse = discourses[j]
-                prob_vec = np.dot(embedding_mat, discourse)
-                prob_vec = np.exp(prob_vec)
-                sorted_idx = np.argsort(prob_vec)[::-1]
-                delete_idx = sorted_idx[total_num:]
-                prob_vec[delete_idx] = 0
-                prob_vec /= np.sum(prob_vec)
-                prob_vec *= 1 - interp_weight
-                prob_vec += background_vec
-                doc_len = int(docs_len[j])
-                docs[i*num_doc+j][:doc_len] = np.random.choice(len(prob_vec), size=doc_len, p=prob_vec)
-                label[i*num_doc+j] = interp_weight/len(word_sup_array)*np.ones(len(word_sup_array))
-                label[i*num_doc+j][i] += 1 - interp_weight
-    elif model == 'rnn':
-        docs = np.zeros((num_doc*len(word_sup_array), sequence_length[0], sequence_length[1]), dtype='int32')
-        label = np.zeros((num_doc*len(word_sup_array), len(word_sup_array)))
-        doc_len = int(len_avg[0])
-        sent_len = int(len_avg[1])
-        for period_idx in vocabulary_inv:
-            if vocabulary_inv[period_idx] == '.':
-                break
-        for i in range(len(word_sup_array)):
-            center = centers[i]
-            kappa = kappas[i]
-            discourses = sample_vMF(center, kappa, num_doc)
-            for j in range(num_doc):
-                discourse = discourses[j]
-                prob_vec = np.dot(embedding_mat, discourse)
-                prob_vec = np.exp(prob_vec)
-                sorted_idx = np.argsort(prob_vec)[::-1]
-                delete_idx = sorted_idx[total_num:]
-                prob_vec[delete_idx] = 0
-                prob_vec /= np.sum(prob_vec)
-                prob_vec *= 1 - interp_weight
-                prob_vec += background_vec
-                for k in range(doc_len):
-                    docs[i*num_doc+j][k][:sent_len] = np.random.choice(len(prob_vec), size=sent_len, p=prob_vec)
-                    docs[i*num_doc+j][k][sent_len] = period_idx
-                label[i*num_doc+j] = interp_weight/len(word_sup_array)*np.ones(len(word_sup_array))
-                label[i*num_doc+j][i] += 1 - interp_weight
 
+    # Pseudo Documents Generation for CNN
+    docs = np.zeros((num_doc*len(word_sup_array), sequence_length), dtype='int32')
+    label = np.zeros((num_doc*len(word_sup_array), len(word_sup_array)))
+    for i in range(len(word_sup_array)):
+        docs_len = len_avg*np.ones(num_doc)
+        center = centers[i]
+        kappa = kappas[i]
+        discourses = sample_vMF(center, kappa, num_doc)
+        for j in range(num_doc):
+            discourse = discourses[j]
+            prob_vec = np.dot(embedding_mat, discourse)
+            prob_vec = np.exp(prob_vec)
+            sorted_idx = np.argsort(prob_vec)[::-1]
+            delete_idx = sorted_idx[total_num:]
+            prob_vec[delete_idx] = 0
+            prob_vec /= np.sum(prob_vec)
+            prob_vec *= 1 - interp_weight
+            prob_vec += background_vec
+            doc_len = int(docs_len[j])
+            docs[i*num_doc+j][:doc_len] = np.random.choice(len(prob_vec), size=doc_len, p=prob_vec)
+            label[i*num_doc+j] = interp_weight/len(word_sup_array)*np.ones(len(word_sup_array))
+            label[i*num_doc+j][i] += 1 - interp_weight
+    
     print("Finished Pseudo documents generation.")
     return docs, label
 
