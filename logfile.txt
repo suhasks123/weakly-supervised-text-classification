@@ -1,0 +1,183 @@
+### Phase 1: vMF distribution fitting & pseudo document generation ###
+Retrieving top-t nearest words...
+Final expansion size t = 101
+Top-t nearest words for each class:
+Class 0:
+['bad', 'carlos', 'playmates', 'mohawk', 'escalators', 'unwelcomed', 'aamco', 'mild', 'goldblum', 'choc', 'noir', 'cannnot', '4star', '3073', 'skyharbor', 'duping', 'moosecock', 'news', 'transpired', 'potpourri', 'luck', 'luggage', 'yech', 'giddily', 'mooed', 'craig', 'bogo', 'rendre', 'rabbits', 'healthiest', 'whre', 'accross', 'hhaha', 'spam', 'saltier', 'faves', 'addition', 'gallivanting', 'compensating', 'phila', 'espo', 'goodbyes', 'nighter', 'wwc', 'terrazzo', 'zeichnet', 'oceanic', 'glissant', 'totter', 'newegg', 'senske', 'okayyy', 'jaymee', 'dijonnaise', 'remotes', 'coined', 'remarked', 'intrudes', 'devouring', 'languate', 'hauls', 'yummmmmmmmmm', 'insert', 'thry', 'perfumes', 'fumbled', 'unfortunaltley', 'incensed', "'manager'", 'jabbawockeez', 'wade', 'cbtl', 'titanic', 'alight', 'heifers', 'restaurant', 'mango', 'subtracting', 'lila', 'motel', 'voted', "city'", 'vinegars', 'provided', 'plucking', 'radissons', 'kommen', 'tenaient', 'rating', 'costoletta', 'niky', 'pmt', 'hems', 'indicator', 'laught', 'drummania', 'pored', 'lionel', 'charlottean', 'hearings', '35504']
+
+Finished vMF distribution fitting.
+Pseudo documents generation...
+Finished Pseudo documents generation.
+
+### Phase 2: pre-training with pseudo documents ###
+
+Neural model summary:
+Model: "classifier"
+__________________________________________________________________________________________________
+Layer (type)                    Output Shape         Param #     Connected to
+==================================================================================================
+input (InputLayer)              [(None, 500)]        0
+__________________________________________________________________________________________________
+embedding (Embedding)           (None, 500, 3072)    179582976   input[0][0]
+__________________________________________________________________________________________________
+conv1d (Conv1D)                 (None, 499, 20)      122900      embedding[0][0]
+__________________________________________________________________________________________________
+conv1d_1 (Conv1D)               (None, 498, 20)      184340      embedding[0][0]
+__________________________________________________________________________________________________
+conv1d_2 (Conv1D)               (None, 497, 20)      245780      embedding[0][0]
+__________________________________________________________________________________________________
+conv1d_3 (Conv1D)               (None, 496, 20)      307220      embedding[0][0]
+__________________________________________________________________________________________________
+global_max_pooling1d (GlobalMax (None, 20)           0           conv1d[0][0]
+__________________________________________________________________________________________________
+global_max_pooling1d_1 (GlobalM (None, 20)           0           conv1d_1[0][0]
+__________________________________________________________________________________________________
+global_max_pooling1d_2 (GlobalM (None, 20)           0           conv1d_2[0][0]
+__________________________________________________________________________________________________
+global_max_pooling1d_3 (GlobalM (None, 20)           0           conv1d_3[0][0]
+__________________________________________________________________________________________________
+concatenate (Concatenate)       (None, 80)           0           global_max_pooling1d[0][0]
+                                                                 global_max_pooling1d_1[0][0]
+                                                                 global_max_pooling1d_2[0][0]
+                                                                 global_max_pooling1d_3[0][0]
+__________________________________________________________________________________________________
+dense (Dense)                   (None, 50)           4050        concatenate[0][0]
+__________________________________________________________________________________________________
+dense_1 (Dense)                 (None, 2)            102         dense[0][0]
+==================================================================================================
+Total params: 180,447,368
+Trainable params: 864,392
+Non-trainable params: 179,582,976
+__________________________________________________________________________________________________
+
+Pretraining...
+Epoch 1/30
+4/4 [==============================] - 14s 4s/step - loss: 0.3670
+Epoch 2/30
+4/4 [==============================] - 13s 3s/step - loss: 0.1874
+Epoch 3/30
+4/4 [==============================] - 13s 3s/step - loss: 0.0967
+Epoch 4/30
+4/4 [==============================] - 13s 3s/step - loss: 0.0694
+Epoch 5/30
+4/4 [==============================] - 13s 3s/step - loss: 0.0333
+Epoch 6/30
+4/4 [==============================] - 13s 3s/step - loss: 0.0121
+Epoch 7/30
+4/4 [==============================] - 14s 3s/step - loss: 0.0056
+Epoch 8/30
+4/4 [==============================] - 13s 3s/step - loss: 0.0023
+Epoch 9/30
+4/4 [==============================] - 13s 3s/step - loss: 0.0022
+Epoch 10/30
+4/4 [==============================] - 13s 3s/step - loss: 0.0019
+Epoch 11/30
+4/4 [==============================] - 13s 3s/step - loss: 9.5602e-04
+Epoch 12/30
+4/4 [==============================] - 13s 3s/step - loss: 6.3617e-04
+Epoch 13/30
+4/4 [==============================] - 13s 3s/step - loss: 2.5257e-04
+Epoch 14/30
+4/4 [==============================] - 13s 3s/step - loss: 2.4063e-04
+Epoch 15/30
+4/4 [==============================] - 12s 3s/step - loss: 1.9645e-04
+Epoch 16/30
+4/4 [==============================] - 13s 3s/step - loss: 1.4417e-04
+Epoch 17/30
+4/4 [==============================] - 13s 3s/step - loss: 1.0722e-04
+Epoch 18/30
+4/4 [==============================] - 13s 3s/step - loss: 4.8310e-05
+Epoch 19/30
+4/4 [==============================] - 13s 3s/step - loss: 3.8056e-05
+Epoch 20/30
+4/4 [==============================] - 13s 3s/step - loss: 2.4569e-05
+Epoch 21/30
+4/4 [==============================] - 13s 3s/step - loss: 1.9523e-05
+Epoch 22/30
+4/4 [==============================] - 13s 3s/step - loss: 1.4917e-05
+Epoch 23/30
+4/4 [==============================] - 13s 3s/step - loss: 9.1765e-06
+Epoch 24/30
+4/4 [==============================] - 13s 3s/step - loss: 7.2357e-06
+Epoch 25/30
+4/4 [==============================] - 13s 3s/step - loss: 3.9396e-06
+Epoch 26/30
+4/4 [==============================] - 13s 3s/step - loss: 3.0987e-06
+Epoch 27/30
+4/4 [==============================] - 13s 3s/step - loss: 2.0193e-06
+Epoch 28/30
+4/4 [==============================] - 13s 3s/step - loss: 1.3370e-06
+Epoch 29/30
+4/4 [==============================] - 13s 3s/step - loss: 1.0758e-06
+Epoch 30/30
+4/4 [==============================] - 13s 3s/step - loss: 5.5906e-07
+Pretraining time: 532.27s
+Pretrained model saved to ./results/yelp/cnn/phase2/pretrained.h5
+F1 score after pre-training: 0.52563
+Accuracy score after pre-training: accuracy = 0.53597
+
+### Phase 3: self-training ###
+Update interval: 50
+
+Iter 0: f1_score = 0.52563, Accuracy = 0.53597
+Fraction of documents with label changes: 0.0 %
+
+Iter 50: f1_score = 0.52823, Accuracy = 0.53582
+Fraction of documents with label changes: 2.084 %
+
+Iter 100: f1_score = 0.52972, Accuracy = 0.53511
+Fraction of documents with label changes: 1.982 %
+
+Iter 150: f1_score = 0.53094, Accuracy = 0.53424
+Fraction of documents with label changes: 2.318 %
+
+Iter 200: f1_score = 0.53429, Accuracy = 0.53568
+Fraction of documents with label changes: 2.918 %
+
+Iter 250: f1_score = 0.53692, Accuracy = 0.53734
+Fraction of documents with label changes: 2.45 %
+
+Iter 300: f1_score = 0.53829, Accuracy = 0.53829
+Fraction of documents with label changes: 2.958 %
+
+Iter 350: f1_score = 0.54079, Accuracy = 0.54126
+Fraction of documents with label changes: 3.255 %
+
+Iter 400: f1_score = 0.54079, Accuracy = 0.54245
+Fraction of documents with label changes: 2.813 %
+
+Iter 450: f1_score = 0.54006, Accuracy = 0.54395
+Fraction of documents with label changes: 3.176 %
+
+Iter 500: f1_score = 0.53788, Accuracy = 0.54489
+Fraction of documents with label changes: 3.132 %
+
+Iter 550: f1_score = 0.53638, Accuracy = 0.54663
+Fraction of documents with label changes: 2.547 %
+
+Iter 600: f1_score = 0.53587, Accuracy = 0.54934
+Fraction of documents with label changes: 2.166 %
+
+Iter 650: f1_score = 0.5352, Accuracy = 0.55111
+Fraction of documents with label changes: 1.466 %
+
+Iter 700: f1_score = 0.53447, Accuracy = 0.55155
+Fraction of documents with label changes: 0.655 %
+
+Iter 750: f1_score = 0.53375, Accuracy = 0.55163
+Fraction of documents with label changes: 0.429 %
+
+Iter 800: f1_score = 0.53328, Accuracy = 0.55155
+Fraction of documents with label changes: 0.203 %
+
+Iter 850: f1_score = 0.5333, Accuracy = 0.55171
+Fraction of documents with label changes: 0.079 %
+
+Fraction: 0.079 % < tol: 0.1 %
+Reached tolerance threshold. Stopping training.
+Final model saved to: ./results/yelp/cnn/phase3/final.h5
+
+Self-training time: 12285.15s
+
+### Generating outputs ###
+Classification results are written to ./yelp/out.txt
