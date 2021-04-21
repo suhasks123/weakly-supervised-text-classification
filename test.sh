@@ -2,7 +2,7 @@
 dataset=yelp
 sup_source=labels
 model=cnn
-language_model = bert
+language_model=bert
 
 export CUDA_VISIBLE_DEVICES=0
 
