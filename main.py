@@ -15,6 +15,7 @@ from gensim.models import word2vec
 import torch
 from transformers import BertTokenizer
 from transformers import BertModel
+import pickle
 
 '''
 This function is used to set the optional arguments for the
@@ -35,6 +36,7 @@ def arguments_parser(parser):
 
 # Basic configuration settings
 def set_parser_arguments_basic(parser):
+    parser.add_argument('--language_model', '-l', default='w2v', choices=['w2v', 'bert']) # Selecting the language model
     parser.add_argument('--model', '-m', default='cnn', choices=['cnn', 'rnn']) # Selecting proper neural network model to use
     parser.add_argument('--sup_source', '-s', default='labels', choices=['labels', 'keywords', 'docs']) # Selecting the weak supervision source
     parser.add_argument('--dataset', '-d', default='agnews', choices=['agnews', 'yelp', 'imdb']) # Selecting appropriate dataset for training
@@ -92,7 +94,39 @@ def write_output_to_file(write_path, y_pred, perm):
     print("Classification results are written to {}".format(os.path.join(write_path, 'out.txt')))
     return
 
-def train_bert_model(sentence_matrix, vocabulary_inv, dataset_name, mode='skipgram', num_of_features=100, min_word_count=5, context=5):
+'''
+This function writes the word embeddings obtained from Bert into a file
+'''
+def write_bert_embeddings_to_file(dataset_name, bert_embedding_weights):
+    # Dataset directory
+    bert_model_directory = './' + dataset_name
+
+    # Write to file
+    with open(os.path.join(bert_model_directory, 'BERTembedding.txt'), 'wb+') as fptr:
+        pickle.dump(bert_embedding_weights, fptr)
+        fptr.close()
+        print("Embeddings written to file!\n")
+
+    return
+
+'''
+This function reads the word embeddings obtained from Bert from a file
+'''
+def read_bert_embeddings_from_file(dataset_name):
+    # The dataset name
+    bert_model_directory = './' + dataset_name
+
+    # Load the embeddings into a dict
+    with open(os.path.join(bert_model_directory, 'BERTembedding.txt'), 'rb+') as fptr:
+        embeddings = pickle.load(fptr)
+
+    # Close file
+    fptr.close()
+
+    return embeddings
+
+
+def train_bert_model(sentence_matrix, vocabulary_inv, dataset_name):
     ## Load pretrained model/tokenizer
 
     bert_model_directory = './' + dataset_name
@@ -151,8 +185,6 @@ def train_bert_model(sentence_matrix, vocabulary_inv, dataset_name, mode='skipgr
             # # print(final_embed_np.shape)
             embedding_model[s[0]] = final_embed_np
             c += 1
-            if c == 100: 
-                break
 
         bert_embedding_weights = {}
         for key, word in vocabulary_inv.items():
@@ -161,20 +193,11 @@ def train_bert_model(sentence_matrix, vocabulary_inv, dataset_name, mode='skipgr
             else:
                 bert_embedding_weights[key] = np.random.uniform(-0.25, 0.25, 3072)
 
-        with open(bert_model_name, 'w') as outfile:
-            for key, value in bert_embedding_weights.items():
-                print(key)
-                print(value)
-                outfile.write(str(key) + ":" + value + "\n")
+        write_bert_embeddings_to_file(dataset_name, bert_embedding_weights)
 
     else:
-        bert_embedding_weights = {}
-        with open(bert_model_name, 'r') as weightFile:
-            print("Preparing to load the existing bert model...")
-            k = weightFile.readline()
-            k = k.split(":")
-            print(k)
-            bert_embedding_weights[int(k[0])] = k[1]
+        print("Preparing to load the existing bert model...")
+        bert_embedding_weights = read_bert_embeddings_from_file(dataset_name)
 
     return bert_embedding_weights
 
@@ -250,8 +273,11 @@ if __name__ == "__main__":
     gamma = args.gamma
     delta = args.delta
 
-    word_embedding_dim = 3072
-    
+    if args.language_model == "w2v":
+        word_embedding_dim = 100
+    elif args.language_model == "bert":
+        word_embedding_dim = 3072
+
     if args.model == 'cnn':
 
         if args.dataset == 'agnews':
@@ -338,9 +364,11 @@ if __name__ == "__main__":
         sequence_length = [doc_len, sent_len]
     
     print("\n### Input preparation ###")
-    w2v_embedding_weights = train_bert_model(x, vocabulary_inv, args.dataset)
-    # w2v_embedding_weights = train_word2vec_model(x, vocabulary_inv, args.dataset)
-    embedding_mat = np.array([np.array(w2v_embedding_weights[word]) for word in vocabulary_inv])
+    if args.language_model == "w2v":
+        embedding_weights = train_word2vec_model(x, vocabulary_inv, args.dataset)
+    elif args.language_model == "bert":
+        embedding_weights = train_bert_model(x, vocabulary_inv, args.dataset)
+    embedding_mat = np.array([np.array(embedding_weights[word]) for word in vocabulary_inv])
     # print(embedding_mat)
     # print(embedding_mat.size)
     

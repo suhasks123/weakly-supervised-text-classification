@@ -31,9 +31,9 @@ def accuracy(y_true, y_pred):
     return accuracy_value
 
 def ConvolutionLayer(input_shape, n_classes, filter_sizes=[2, 3, 4, 5], num_filters=20, word_trainable=False, vocab_sz=None,
-                     embedding_matrix=None, word_embedding_dim=100, hidden_dim=50, act='tanh', init='ones'):
+                     embedding_matrix=None, word_embedding_dim=100, hidden_dim=20, act='relu', init='ones'):
     x = Input(shape=(input_shape,), name='input')
-    z = Embedding(vocab_sz, word_embedding_dim, input_length=(input_shape,), name="embedding", 
+    z = Embedding(vocab_sz, word_embedding_dim, input_length=(input_shape,), name="embedding",
                     weights=[embedding_matrix], trainable=word_trainable)(x)
     conv_blocks = []
     for sz in filter_sizes:
@@ -41,7 +41,7 @@ def ConvolutionLayer(input_shape, n_classes, filter_sizes=[2, 3, 4, 5], num_filt
         conv = GlobalMaxPooling1D()(conv)
         conv_blocks.append(conv)
     z = Concatenate()(conv_blocks) if len(conv_blocks) > 1 else conv_blocks[0]
-    z = Dense(hidden_dim, activation="tanh")(z)
+    z = Dense(hidden_dim, activation="relu")(z)
     y = Dense(n_classes, activation="softmax")(z)
     return Model(inputs=x, outputs=y, name='classifier')
 
